@@ -3,7 +3,8 @@ import { neon } from '@neondatabase/serverless';
 let _sql;
 const sql = (...args) => { if (!_sql) _sql = neon(process.env.DATABASE_URL); return _sql(...args); };
 const ADMIN = process.env.ADMIN_TOKEN || 'change-me';
-const HANDLE = process.env.TIKTOK_HANDLE || 'avgpiano';
+const RAW_HANDLE = process.env.TIKTOK_HANDLE || 'avgpiano';
+const HANDLE = RAW_HANDLE.replace(/^.*tiktok\.com\/@?/, '').replace(/^@/, '').replace(/\/.*$/, '');
 const BIO = process.env.TIKTOK_BIO || 'I play your song requests on piano';
 const AVATAR = process.env.TIKTOK_AVATAR || '';
 
