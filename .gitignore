@@ -1,0 +1,11 @@
+target/
+node_modules/
+*.class
+*.jar
+*.log
+.idea/
+*.iml
+.vscode/
+.DS_Store
+*.swp
+.netlify/

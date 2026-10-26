@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Piano Queue</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg:#07050e;
+  --surface:rgba(255,255,255,0.035);
+  --surface-hover:rgba(255,255,255,0.06);
+  --border:rgba(255,255,255,0.07);
+  --border-focus:rgba(139,92,246,0.5);
+  --accent:#8b5cf6;--accent-dim:#7c3aed;--accent-light:#a78bfa;
+  --glow:rgba(139,92,246,0.25);
+  --text:#f0f0f0;--dim:#777;--faint:#444;
+  --green:#22c55e;--red:#ef4444;
+  --radius:16px;--radius-sm:12px;
+}
+
+html{scroll-behavior:smooth}
+body{
+  font-family:'Inter',system-ui,-apple-system,sans-serif;
+  background:var(--bg);color:var(--text);
+  min-height:100dvh;padding:0 16px 60px;
+  overflow-x:hidden;
+}
+
+/* Ambient background */
+.ambient{
+  position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 40%, rgba(88,28,135,0.12) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 80% 20%, rgba(139,92,246,0.07) 0%, transparent 50%),
+    radial-gradient(ellipse 70% 50% at 50% 100%, rgba(67,56,202,0.08) 0%, transparent 50%);
+}
+
+.container{max-width:520px;margin:0 auto}
+
+/* ── Header ── */
+.header{text-align:center;padding:48px 0 8px}
+.header h1{
+  font-size:42px;font-weight:800;letter-spacing:-1px;line-height:1;
+  background:linear-gradient(135deg,#fff 30%,var(--accent-light) 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+}
+.header .handle{color:var(--accent);font-size:15px;margin-top:8px;font-weight:500}
+.header .bio{color:var(--dim);font-size:14px;margin-top:4px}
+.tiktok-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  margin-top:14px;padding:8px 20px;
+  background:var(--surface);border:1px solid var(--border);border-radius:24px;
+  color:var(--accent-light);font-size:13px;font-weight:500;
+  text-decoration:none;transition:all .25s;
+}
+.tiktok-btn:hover{background:var(--surface-hover);border-color:var(--border-focus);box-shadow:0 0 20px var(--glow)}
+.tiktok-btn svg{width:14px;height:14px}
+
+/* ── Sections ── */
+.section{margin-top:36px}
+.section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.section-head h2{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--dim)}
+.section-head .count{font-size:13px;color:var(--faint)}
+
+/* ── Glass Card ── */
+.glass{
+  background:var(--surface);
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border:1px solid var(--border);border-radius:var(--radius);
+  padding:24px;
+}
+
+/* ── Inputs ── */
+.field{margin-bottom:16px;position:relative}
+.field label{display:block;font-size:12px;font-weight:500;color:var(--dim);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px}
+.field input[type="text"]{
+  width:100%;padding:14px 16px;
+  background:rgba(0,0,0,0.35);border:1px solid var(--border);border-radius:var(--radius-sm);
+  color:var(--text);font-size:15px;font-family:inherit;outline:none;
+  transition:border-color .2s,box-shadow .2s;
+}
+.field input:focus{border-color:var(--border-focus);box-shadow:0 0 0 3px rgba(139,92,246,0.08)}
+.field input::placeholder{color:#555}
+
+/* ── Autocomplete ── */
+.suggestions{
+  position:absolute;top:100%;left:0;right:0;z-index:20;
+  background:rgba(18,12,30,0.95);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border:1px solid var(--border);border-radius:var(--radius-sm);
+  margin-top:6px;max-height:340px;overflow-y:auto;
+  display:none;box-shadow:0 16px 40px rgba(0,0,0,0.5);
+}
+.suggestions.open{display:block}
+.sug{
+  display:flex;align-items:center;gap:12px;
+  padding:10px 14px;cursor:pointer;transition:background .12s;
+}
+.sug:hover,.sug.focused{background:rgba(139,92,246,0.1)}
+.sug img{width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0}
+.sug .track{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sug .artist{font-size:12px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.toggle-link{font-size:12px;color:var(--accent);cursor:pointer;margin-top:6px;display:inline-block;opacity:.8;transition:opacity .2s}
+.toggle-link:hover{opacity:1}
+
+/* ── Selected chip ── */
+.chip{
+  display:flex;align-items:center;gap:12px;
+  background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.2);
+  border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:16px;
+}
+.chip img{width:44px;height:44px;border-radius:8px;flex-shrink:0}
+.chip .info{flex:1;overflow:hidden}
+.chip .track{font-size:14px;font-weight:500}
+.chip .artist{font-size:12px;color:var(--dim)}
+.chip .x{color:var(--dim);cursor:pointer;font-size:20px;padding:4px 4px 4px 8px;transition:color .2s}
+.chip .x:hover{color:var(--red)}
+
+/* ── Checkbox ── */
+.check{display:flex;align-items:center;gap:10px;margin-bottom:20px;cursor:pointer}
+.check input{accent-color:var(--accent);width:18px;height:18px;cursor:pointer}
+.check span{font-size:14px;color:var(--dim)}
+
+/* ── Manual fields ── */
+.manual{display:none}.manual.on{display:block}
+
+/* ── Button ── */
+.btn{
+  width:100%;padding:16px;border:none;border-radius:var(--radius-sm);
+  background:linear-gradient(135deg,var(--accent-dim),var(--accent));
+  color:#fff;font-size:15px;font-weight:600;font-family:inherit;
+  cursor:pointer;transition:transform .15s,box-shadow .15s;
+  box-shadow:0 4px 20px var(--glow);
+}
+.btn:hover{transform:translateY(-1px);box-shadow:0 8px 30px rgba(139,92,246,0.35)}
+.btn:active{transform:translateY(0) scale(0.98)}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
+
+/* ── Queue ── */
+.queue-list{list-style:none}
+@keyframes slideUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+.qi{
+  display:flex;align-items:center;gap:14px;
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:14px 16px;margin-bottom:10px;
+  transition:background .2s,border-color .2s,transform .2s;
+  animation:slideUp .45s ease both;
+}
+.qi:nth-child(1){animation-delay:0s}
+.qi:nth-child(2){animation-delay:.04s}
+.qi:nth-child(3){animation-delay:.08s}
+.qi:nth-child(4){animation-delay:.12s}
+.qi:nth-child(5){animation-delay:.16s}
+.qi:nth-child(n+6){animation-delay:.2s}
+.qi:hover{background:var(--surface-hover);transform:translateX(3px)}
+
+/* #1 highlight */
+.qi.next{
+  border-color:rgba(139,92,246,0.2);
+  background:rgba(139,92,246,0.04);
+  box-shadow:0 0 30px rgba(139,92,246,0.06);
+}
+
+.qi .pos{
+  width:32px;height:32px;
+  display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,var(--accent-dim),var(--accent));
+  border-radius:50%;font-size:13px;font-weight:700;flex-shrink:0;
+}
+.qi.next .pos{box-shadow:0 0 14px var(--glow)}
+
+.qi .art{width:48px;height:48px;border-radius:10px;object-fit:cover;flex-shrink:0;background:rgba(255,255,255,0.04)}
+.qi .meta{flex:1;overflow:hidden}
+.qi .track{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qi .artist{font-size:12px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qi .by{font-size:11px;color:var(--accent-light);margin-top:2px;font-weight:500}
+.qi .next-label{
+  font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px;
+  color:var(--accent-light);background:rgba(139,92,246,0.12);
+  padding:3px 8px;border-radius:6px;white-space:nowrap;
+}
+
+.empty{text-align:center;color:var(--faint);padding:48px 0;font-size:14px}
+
+/* ── Toast ── */
+.toast{
+  position:fixed;bottom:28px;left:16px;right:16px;
+  max-width:520px;margin:0 auto;
+  padding:14px 20px;border-radius:var(--radius-sm);
+  font-size:14px;font-weight:500;
+  transform:translateY(140%);transition:transform .35s cubic-bezier(.22,1,.36,1);
+  z-index:200;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+}
+.toast.show{transform:translateY(0)}
+.toast.ok{background:rgba(34,197,94,0.9);color:#fff}
+.toast.err{background:rgba(239,68,68,0.9);color:#fff}
+
+/* ── Footer ── */
+.footer{text-align:center;margin-top:48px;padding-bottom:16px}
+.footer a{color:var(--faint);font-size:12px;text-decoration:none;transition:color .2s}
+.footer a:hover{color:var(--dim)}
+</style>
+</head>
+<body>
+<div class="ambient"></div>
+<div class="container">
+
+  <header class="header" id="profileHeader">
+    <h1>Piano Queue</h1>
+    <div class="handle" id="handle"></div>
+    <div class="bio" id="bio"></div>
+    <a class="tiktok-btn" id="tiktokLink" href="#" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1 0-5.78 2.92 2.92 0 0 1 .88.13v-3.5a6.37 6.37 0 0 0-.88-.07 6.34 6.34 0 0 0 0 12.68 6.34 6.34 0 0 0 6.34-6.34V9.06a8.16 8.16 0 0 0 3.76.92V6.69Z"/></svg>
+      Follow on TikTok
+    </a>
+  </header>
+
+  <!-- Request Form -->
+  <div class="section">
+    <div class="section-head"><h2>Request a Song</h2></div>
+    <div class="glass">
+
+      <div id="chip" class="chip" style="display:none">
+        <img id="chipArt" src="" alt="">
+        <div class="info">
+          <div class="track" id="chipTrack"></div>
+          <div class="artist" id="chipArtist"></div>
+        </div>
+        <span class="x" id="chipClear">&times;</span>
+      </div>
+
+      <div id="searchWrap" class="field">
+        <label for="songSearch">Song</label>
+        <input type="text" id="songSearch" placeholder="Search for a song..." autocomplete="off">
+        <div class="suggestions" id="sugs"></div>
+        <span class="toggle-link" id="toManual">Can't find it? Type manually</span>
+      </div>
+
+      <div id="manualWrap" class="manual">
+        <div class="field">
+          <label for="mTrack">Song name</label>
+          <input type="text" id="mTrack" placeholder="e.g. Clair de Lune" maxlength="200">
+        </div>
+        <div class="field">
+          <label for="mArtist">Artist</label>
+          <input type="text" id="mArtist" placeholder="e.g. Debussy" maxlength="200">
+        </div>
+        <span class="toggle-link" id="toSearch">Back to search</span>
+      </div>
+
+      <div class="field" style="margin-top:16px">
+        <label for="rName">Your name</label>
+        <input type="text" id="rName" placeholder="First name or nickname" maxlength="50">
+      </div>
+
+      <label class="check">
+        <input type="checkbox" id="namePub" checked>
+        <span>Show my name in the queue</span>
+      </label>
+
+      <button class="btn" id="submitBtn">Submit Request</button>
+    </div>
+  </div>
+
+  <!-- Queue -->
+  <div class="section">
+    <div class="section-head">
+      <h2>Queue</h2>
+      <span class="count" id="qCount"></span>
+    </div>
+    <ul class="queue-list" id="qList">
+      <li class="empty">Loading...</li>
+    </ul>
+  </div>
+
+  <div class="footer"><a href="admin.html">Admin</a></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = '';
+const $=id=>document.getElementById(id);
+
+let picked=null, manual=false, debounce=null, focusIdx=-1, sugData=[];
+
+// Profile
+fetch(API+'/api/profile').then(r=>r.json()).then(p=>{
+  $('handle').textContent='@'+p.handle;
+  $('bio').textContent=p.bio;
+  $('tiktokLink').href=p.tiktokLink;
+}).catch(()=>{});
+
+// Queue
+function loadQ(){
+  fetch(API+'/api/requests').then(r=>r.json()).then(items=>{
+    $('qCount').textContent=items.length+(items.length===1?' song':' songs');
+    if(!items.length){$('qList').innerHTML='<li class="empty">No songs in the queue yet. Be the first!</li>';return}
+    $('qList').innerHTML=items.map((it,i)=>`
+      <li class="qi${i===0?' next':''}">
+        <span class="pos">${it.position}</span>
+        ${it.artworkUrl?`<img class="art" src="${esc(it.artworkUrl)}" alt="">`:'<div class="art"></div>'}
+        <div class="meta">
+          <div class="track">${esc(it.trackName)}</div>
+          ${it.artistName?`<div class="artist">${esc(it.artistName)}</div>`:''}
+          ${it.requesterName?`<div class="by">requested by ${esc(it.requesterName)}</div>`:''}
+        </div>
+        ${i===0?'<span class="next-label">Up Next</span>':''}
+      </li>`).join('');
+  }).catch(()=>{$('qCount').textContent='';$('qList').innerHTML='<li class="empty">Could not load queue</li>'});
+}
+loadQ(); setInterval(loadQ,30000);
+
+// Search
+$('songSearch').addEventListener('input',e=>{
+  clearTimeout(debounce);
+  const q=e.target.value.trim();
+  if(q.length<2){hideS();return}
+  debounce=setTimeout(()=>{
+    fetch(API+'/api/songs/search?q='+encodeURIComponent(q))
+      .then(r=>r.json()).then(res=>{
+        sugData=res;focusIdx=-1;
+        if(!res.length){hideS();return}
+        $('sugs').innerHTML=res.map((s,i)=>`
+          <div class="sug" data-i="${i}">
+            ${s.artworkUrl?`<img src="${esc(s.artworkUrl)}" alt="">`:''}
+            <div><div class="track">${esc(s.trackName)}</div><div class="artist">${esc(s.artistName)}</div></div>
+          </div>`).join('');
+        $('sugs').classList.add('open');
+      }).catch(()=>hideS());
+  },300);
+});
+
+$('songSearch').addEventListener('keydown',e=>{
+  if(!$('sugs').classList.contains('open'))return;
+  if(e.key==='ArrowDown'){e.preventDefault();focusIdx=Math.min(focusIdx+1,sugData.length-1);updFocus()}
+  else if(e.key==='ArrowUp'){e.preventDefault();focusIdx=Math.max(focusIdx-1,0);updFocus()}
+  else if(e.key==='Enter'&&focusIdx>=0){e.preventDefault();pick(sugData[focusIdx])}
+});
+function updFocus(){document.querySelectorAll('.sug').forEach((el,i)=>el.classList.toggle('focused',i===focusIdx))}
+$('sugs').addEventListener('click',e=>{const el=e.target.closest('.sug');if(el)pick(sugData[+el.dataset.i])});
+
+function pick(s){
+  picked=s;
+  $('chipTrack').textContent=s.trackName;
+  $('chipArtist').textContent=s.artistName;
+  $('chipArt').src=s.artworkUrl||'';
+  $('chipArt').style.display=s.artworkUrl?'':'none';
+  $('chip').style.display='flex';
+  $('searchWrap').style.display='none';
+  hideS();
+}
+$('chipClear').addEventListener('click',()=>{
+  picked=null;$('chip').style.display='none';$('searchWrap').style.display='';
+  $('songSearch').value='';$('songSearch').focus();
+});
+function hideS(){$('sugs').classList.remove('open');$('sugs').innerHTML='';sugData=[];focusIdx=-1}
+document.addEventListener('click',e=>{if(!$('searchWrap').contains(e.target))hideS()});
+
+// Manual toggle
+$('toManual').addEventListener('click',()=>{
+  manual=true;picked=null;$('chip').style.display='none';
+  $('searchWrap').style.display='none';$('manualWrap').classList.add('on');
+  hideS();$('mTrack').focus();
+});
+$('toSearch').addEventListener('click',()=>{
+  manual=false;$('manualWrap').classList.remove('on');$('searchWrap').style.display='';
+  $('mTrack').value='';$('mArtist').value='';$('songSearch').focus();
+});
+
+// Submit
+$('submitBtn').addEventListener('click',async()=>{
+  const name=$('rName').value.trim();
+  if(!name){toast('Enter your name','err');return}
+  let trackName,artistName,artworkUrl;
+  if(manual){
+    trackName=$('mTrack').value.trim();artistName=$('mArtist').value.trim();artworkUrl='';
+    if(!trackName){toast('Enter a song name','err');return}
+  }else if(picked){
+    trackName=picked.trackName;artistName=picked.artistName;artworkUrl=picked.artworkUrl;
+  }else{toast('Search and select a song','err');return}
+
+  $('submitBtn').disabled=true;
+  try{
+    const r=await fetch(API+'/api/requests',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({requesterName:name,trackName,artistName:artistName||'',artworkUrl:artworkUrl||'',namePublic:$('namePub').checked})
+    });
+    const d=await r.json();
+    if(!r.ok){toast(d.error||'Something went wrong','err');return}
+    toast("You're #"+d.position+" in the queue!",'ok');
+    picked=null;$('chip').style.display='none';$('searchWrap').style.display='';
+    $('songSearch').value='';$('mTrack').value='';$('mArtist').value='';
+    if(manual){manual=false;$('manualWrap').classList.remove('on');$('searchWrap').style.display=''}
+    loadQ();
+  }catch{toast('Network error. Try again.','err')}
+  finally{$('submitBtn').disabled=false}
+});
+
+function toast(msg,type){
+  const t=$('toast');t.textContent=msg;t.className='toast '+type+' show';
+  setTimeout(()=>t.classList.remove('show'),3200);
+}
+function esc(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML}
+</script>
+</body>
+</html>

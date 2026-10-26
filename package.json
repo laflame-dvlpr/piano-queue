@@ -1,0 +1,8 @@
+{
+  "name": "piano-queue",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@neondatabase/serverless": "^0.9.0"
+  }
+}
