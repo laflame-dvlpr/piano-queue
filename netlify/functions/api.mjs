@@ -3,7 +3,7 @@ import { neon } from '@neondatabase/serverless';
 let _sql;
 const sql = (...args) => { if (!_sql) _sql = neon(process.env.DATABASE_URL); return _sql(...args); };
 const ADMIN = process.env.ADMIN_TOKEN || 'change-me';
-const HANDLE = process.env.TIKTOK_HANDLE || 'your_handle';
+const HANDLE = process.env.TIKTOK_HANDLE || 'avgpiano';
 const BIO = process.env.TIKTOK_BIO || 'I play your song requests on piano';
 const AVATAR = process.env.TIKTOK_AVATAR || '';
 
