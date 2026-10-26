@@ -5,6 +5,7 @@ const sql = (...args) => { if (!_sql) _sql = neon(process.env.DATABASE_URL); ret
 const ADMIN = process.env.ADMIN_TOKEN || 'change-me';
 const HANDLE = process.env.TIKTOK_HANDLE || 'your_handle';
 const BIO = process.env.TIKTOK_BIO || 'I play your song requests on piano';
+const AVATAR = process.env.TIKTOK_AVATAR || '';
 
 const cors = {
   'Content-Type': 'application/json',
@@ -25,7 +26,7 @@ export async function handler(event) {
   try {
     // ── Profile ──
     if (method === 'GET' && path === '/profile') {
-      return json(200, { handle: HANDLE, bio: BIO, tiktokLink: `https://tiktok.com/@${HANDLE}` });
+      return json(200, { handle: HANDLE, bio: BIO, avatarUrl: AVATAR, tiktokLink: `https://www.tiktok.com/@${HANDLE}` });
     }
 
     // ── Song search (iTunes proxy) ──
