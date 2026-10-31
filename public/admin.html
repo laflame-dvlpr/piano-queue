@@ -128,6 +128,8 @@ body{
 .act.play:hover{background:rgba(34,197,94,0.25)}
 .act.del{background:rgba(239,68,68,0.1);color:var(--red)}
 .act.del:hover{background:rgba(239,68,68,0.2)}
+.act.del.confirm{background:var(--red);color:#fff;padding:8px 10px}
+.act.del.confirm:hover{background:var(--red);opacity:.9}
 
 /* History items */
 .hi{
@@ -140,6 +142,7 @@ body{
 .hi .track{font-size:13px;font-weight:500}
 .hi .artist{font-size:11px;color:var(--dim)}
 .hi .ago{font-size:11px;color:var(--faint);white-space:nowrap}
+.hi .act{flex-shrink:0}
 .history-wrap{
   background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
   overflow:hidden;
@@ -263,7 +266,7 @@ async function loadQueue(){
         </div>
         <div class="actions">
           <button class="act play" onclick="markPlayed(${it.id})">&#9654; Played</button>
-          <button class="act del" onclick="removeItem(${it.id})">&#10005;</button>
+          <button class="act del" title="Delete permanently" onclick="askDelete(this,${it.id})">&#10005;</button>
         </div>
       </div>`).join('');
   }catch{$('adminQ').innerHTML='<div class="empty">Error loading queue</div>'}
@@ -271,7 +274,7 @@ async function loadQueue(){
 
 async function loadHistory(){
   try{
-    const items=await(await fetch(API+'/api/requests/history')).json();
+    const items=await(await fetch(API+'/api/requests/history',{headers:hdrs()})).json();
     if(!items.length){$('adminH').innerHTML='<div class="empty">Nothing played yet</div>';return}
     $('adminH').innerHTML='<div class="history-wrap">'+items.map(it=>`
       <div class="hi">
@@ -281,6 +284,7 @@ async function loadHistory(){
           ${it.artistName?`<div class="artist">${esc(it.artistName)}</div>`:''}
         </div>
         <span class="ago">${ago(it.createdAt)}</span>
+        <button class="act del" title="Delete permanently" onclick="askDelete(this,${it.id})">&#10005;</button>
       </div>`).join('')+'</div>';
   }catch{$('adminH').innerHTML='<div class="empty">Error loading history</div>'}
 }
@@ -292,6 +296,27 @@ async function markPlayed(id){
     toast('Marked as played','ok');loadAll();
   }catch{toast('Network error','err')}
 }
+
+// Delete is irreversible (row is hard-deleted), so require a second tap
+let pendingId=null,pendingTimer=null;
+function resetDel(){
+  clearTimeout(pendingTimer);
+  document.querySelectorAll('.act.del.confirm').forEach(b=>{
+    b.classList.remove('confirm');
+    if(b.dataset.orig!==undefined) b.innerHTML=b.dataset.orig;
+  });
+  pendingId=null;
+}
+function askDelete(btn,id){
+  if(pendingId===id){resetDel();removeItem(id);return}
+  resetDel();
+  pendingId=id;
+  btn.dataset.orig=btn.innerHTML;
+  btn.innerHTML='Sure?';
+  btn.classList.add('confirm');
+  pendingTimer=setTimeout(resetDel,5000);
+}
+document.addEventListener('click',e=>{if(!e.target.closest('.act.del'))resetDel()});
 
 async function removeItem(id){
   try{
