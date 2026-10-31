@@ -183,6 +183,61 @@ body{
 .btn:active{transform:translateY(0) scale(0.98)}
 .btn:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
 
+/* ── Board: Up Next | Played, side by side ── */
+.board{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start}
+.col{min-width:0}
+.col-head{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:10px;padding:0 3px}
+.col-head h3{
+  font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.2px;
+  color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.col-head .count{font-size:11px;color:var(--faint);flex-shrink:0}
+
+/* Autoscroll viewport */
+.scroller{position:relative;overflow:hidden;max-height:var(--scroll-h,440px)}
+.scroller::before,.scroller::after{
+  content:'';position:absolute;left:0;right:0;height:26px;z-index:2;
+  pointer-events:none;opacity:0;transition:opacity .4s;
+}
+.scroller::before{top:0;background:linear-gradient(to bottom,rgba(248,251,255,.92),rgba(248,251,255,0))}
+.scroller::after{bottom:0;background:linear-gradient(to top,rgba(248,251,255,.92),rgba(248,251,255,0))}
+.scroller.looping::before,.scroller.looping::after{opacity:1}
+.loopwrap{will-change:transform}
+.scroller.looping .loopwrap{animation:loopScroll var(--dur,40s) linear infinite}
+.scroller:hover .loopwrap,.scroller.paused .loopwrap{animation-play-state:paused}
+@keyframes loopScroll{from{transform:translateY(0)}to{transform:translateY(calc(-1 * var(--shift,0px)))}}
+
+/* Compact rows inside the columns */
+.board .queue-list{display:flex;flex-direction:column;gap:8px;padding-bottom:8px}
+.board .qi{margin-bottom:0;gap:10px;padding:11px 12px}
+.board .qi:hover{transform:none}
+.board .qi .pos{width:26px;height:26px;font-size:12px}
+.board .qi .art{width:38px;height:38px;border-radius:8px}
+.board .qi .track{font-size:13px}
+.board .qi .artist{font-size:11px}
+.board .qi .by{font-size:10px}
+.board .qi .when{font-size:10px}
+.board .qi .next-label{display:none}
+.board .clone .qi{animation:none}
+.board .empty{padding:26px 10px;font-size:12px}
+
+@media (max-width:560px){
+  .scroller{--scroll-h:360px}
+  .board{gap:8px}
+  .board .qi{padding:9px 10px;gap:8px}
+  .board .qi .art{display:none}
+  .board .qi .pos{width:22px;height:22px;font-size:11px}
+  .board .qi .track{font-size:12px}
+  .board .qi .artist{font-size:10px}
+  .board .qi .when{display:none}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .scroller.looping .loopwrap{animation:none}
+  .scroller{overflow-y:auto}
+  .scroller.looping::before,.scroller.looping::after{opacity:0}
+}
+
 /* ── Queue ── */
 .queue-list{list-style:none}
 @keyframes slideUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
@@ -227,6 +282,13 @@ body{
   color:var(--accent);background:rgba(14,165,233,0.08);
   padding:3px 8px;border-radius:6px;white-space:nowrap;
 }
+
+/* ── History rows ── */
+.qi .pos.done{
+  background:linear-gradient(135deg,var(--green),#16a34a);
+  font-size:15px;box-shadow:none;
+}
+.qi .when{font-size:11px;color:var(--faint);white-space:nowrap;flex-shrink:0}
 
 .empty{text-align:center;color:var(--faint);padding:48px 0;font-size:14px}
 
@@ -303,15 +365,28 @@ body{
     </div>
   </div>
 
-  <!-- Queue -->
+  <!-- Up Next / Played -->
   <div class="section">
-    <div class="section-head">
-      <h2>Queue</h2>
-      <span class="count" id="qCount"></span>
+    <div class="board">
+      <div class="col">
+        <div class="col-head"><h3>Up Next</h3><span class="count" id="qCount"></span></div>
+        <div class="scroller" id="qScroll">
+          <div class="loopwrap">
+            <ul class="queue-list" id="qList"><li class="empty">Loading...</li></ul>
+            <ul class="queue-list clone" id="qClone" aria-hidden="true"></ul>
+          </div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="col-head"><h3>Played</h3><span class="count" id="hCount"></span></div>
+        <div class="scroller" id="hScroll">
+          <div class="loopwrap">
+            <ul class="queue-list" id="hList"><li class="empty">Loading...</li></ul>
+            <ul class="queue-list clone" id="hClone" aria-hidden="true"></ul>
+          </div>
+        </div>
+      </div>
     </div>
-    <ul class="queue-list" id="qList">
-      <li class="empty">Loading...</li>
-    </ul>
   </div>
 
 </div>
@@ -337,25 +412,92 @@ fetch(API+'/api/profile').then(r=>r.json()).then(p=>{
   $('avatarWrap').innerHTML='<div class="avatar-placeholder">♪</div>';
 });
 
-// Queue
-function loadQ(){
-  fetch(API+'/api/requests').then(r=>r.json()).then(items=>{
-    $('qCount').textContent=items.length+(items.length===1?' song':' songs');
-    if(!items.length){$('qList').innerHTML='<li class="empty">No songs in the queue yet. Be the first!</li>';return}
-    $('qList').innerHTML=items.map((it,i)=>`
-      <li class="qi${i===0?' next':''}">
-        <span class="pos">${it.position}</span>
-        ${it.artworkUrl?`<img class="art" src="${esc(it.artworkUrl)}" alt="">`:'<div class="art"></div>'}
-        <div class="meta">
+// ── Lists ──
+const SPEED=22; // px/sec
+
+function art(u){return u?`<img class="art" src="${esc(u)}" alt="">`:'<div class="art"></div>'}
+function meta(it){
+  return `<div class="meta">
           <div class="track">${esc(it.trackName)}</div>
           ${it.artistName?`<div class="artist">${esc(it.artistName)}</div>`:''}
           ${it.requesterName?`<div class="by">requested by ${esc(it.requesterName)}</div>`:''}
-        </div>
-        ${i===0?'<span class="next-label">Up Next</span>':''}
-      </li>`).join('');
-  }).catch(()=>{$('qCount').textContent='';$('qList').innerHTML='<li class="empty">Could not load queue</li>'});
+        </div>`;
 }
-loadQ(); setInterval(loadQ,30000);
+
+let lastQ=null,lastH=null;
+
+function loadQ(){
+  fetch(API+'/api/requests').then(r=>r.json()).then(items=>{
+    $('qCount').textContent=items.length;
+    const html=items.length?items.map((it,i)=>`
+      <li class="qi${i===0?' next':''}">
+        <span class="pos">${it.position}</span>
+        ${art(it.artworkUrl)}
+        ${meta(it)}
+      </li>`).join(''):'<li class="empty">No songs yet. Be the first!</li>';
+    if(html===lastQ) return;
+    lastQ=html; $('qList').innerHTML=html; setupLoop('q');
+  }).catch(()=>{
+    $('qCount').textContent=''; lastQ=null;
+    $('qList').innerHTML='<li class="empty">Could not load queue</li>'; setupLoop('q');
+  });
+}
+
+function loadH(){
+  fetch(API+'/api/requests/history').then(r=>r.json()).then(items=>{
+    $('hCount').textContent=items.length;
+    const html=items.length?items.map(it=>`
+      <li class="qi">
+        <span class="pos done">&#10003;</span>
+        ${art(it.artworkUrl)}
+        ${meta(it)}
+        <span class="when">${ago(it.createdAt)}</span>
+      </li>`).join(''):'<li class="empty">Nothing played yet</li>';
+    if(html===lastH) return;
+    lastH=html; $('hList').innerHTML=html; setupLoop('h');
+  }).catch(()=>{
+    $('hCount').textContent=''; lastH=null;
+    $('hList').innerHTML='<li class="empty">Could not load history</li>'; setupLoop('h');
+  });
+}
+
+// Seamless looping autoscroll: clone the list and translate by exactly one copy
+function setupLoop(key){
+  const sc=$(key+'Scroll'), list=$(key+'List'), clone=$(key+'Clone');
+  clone.innerHTML='';
+  sc.classList.remove('looping');
+  sc.style.removeProperty('--shift'); sc.style.removeProperty('--dur');
+  requestAnimationFrame(()=>{
+    const h=list.offsetHeight;
+    if(!h || h<=sc.clientHeight+2) return;   // fits in view: nothing to scroll
+    clone.innerHTML=list.innerHTML;
+    sc.style.setProperty('--shift',h+'px');
+    sc.style.setProperty('--dur',Math.max(14,h/SPEED)+'s');
+    sc.classList.add('looping');
+  });
+}
+
+// Pause autoscroll while a finger is on a column
+['q','h'].forEach(k=>{
+  const el=$(k+'Scroll');
+  el.addEventListener('touchstart',()=>el.classList.add('paused'),{passive:true});
+  el.addEventListener('touchend',()=>setTimeout(()=>el.classList.remove('paused'),2500),{passive:true});
+});
+
+function ago(iso){
+  const s=Math.floor((Date.now()-new Date(iso))/1000);
+  if(isNaN(s)) return '';
+  if(s<60) return 'just now';
+  if(s<3600) return Math.floor(s/60)+'m ago';
+  if(s<86400) return Math.floor(s/3600)+'h ago';
+  if(s<604800) return Math.floor(s/86400)+'d ago';
+  return new Date(iso).toLocaleDateString(undefined,{month:'short',day:'numeric'});
+}
+
+function loadAll(){loadQ();loadH()}
+loadAll();
+setInterval(loadAll,30000);
+window.addEventListener('resize',()=>{setupLoop('q');setupLoop('h')});
 
 // Search
 $('songSearch').addEventListener('input',e=>{
